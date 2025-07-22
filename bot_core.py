@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/{}"
 
 TOKEN = os.getenv("TELEGRAM_API_KEY")
+PORT = int(os.environ.get("PORT", 8000))  # для Render или Railway
 
 def get_transcription(word) :
     """Get transcription from external API"""
@@ -50,12 +51,11 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f"📖 Слово: *{text}*\n🔤 Транскрипция: `{transcription}`", parse_mode="Markdown")
 
 def socket_server():
-    port_number = 2222
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("0.0.0.0", port_number))
+    server_socket.bind(("0.0.0.0", PORT))
     server_socket.listen()
 
-    logger.info("Server listening port %d", port_number)
+    logger.info("Server listening port %d", PORT)
 
     while True:
         client_socket, addr = server_socket.accept()

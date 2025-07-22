@@ -3,7 +3,10 @@
 """Telegram bot for transcription"""
 import logging
 import os
+import socket
+import threading
 import requests
+
 
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
@@ -46,9 +49,29 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     transcription = get_transcription(text)
     await update.message.reply_text(f"📖 Слово: *{text}*\n🔤 Транскрипция: `{transcription}`", parse_mode="Markdown")
 
+def socket_server():
+    port_number = 2222
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(("0.0.0.0", port_number))
+    server_socket.listen()
+
+    logger.info("Server listening port %d", port_number)
+
+    while True:
+        client_socket, addr = server_socket.accept()
+        logger.info("Connecting from %s", addr)
+        data = client_socket.recv(1024)
+        print(f"Received: {data.decode()}")
+        client_socket.sendall(data)
+        client_socket.close()
+
     
 def main() -> None:
     """Start the bot."""
+    # Start server in separate thread. Render scan opened port.
+    server_thread = threading.Thread(target=socket_server, daemon=True)
+    server_thread.start()
+
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(TOKEN).build()
 
@@ -60,7 +83,6 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
     logger.info("Start bot")
-    # print("Бот запущен.")
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)

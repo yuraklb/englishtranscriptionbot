@@ -3,11 +3,10 @@
 """Telegram bot for transcription"""
 import logging
 import os
-import socket
 import threading
+import time
 import requests
-
-
+from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
@@ -20,10 +19,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
+#TELEGRAM PART START
 API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/{}"
-
 TOKEN = os.getenv("TELEGRAM_API_KEY")
-PORT = int(os.environ.get("PORT", 8000))  # для Render или Railway
 
 def get_transcription(word) :
     """Get transcription from external API"""
@@ -50,29 +48,56 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     transcription = get_transcription(text)
     await update.message.reply_text(f"📖 Слово: *{text}*\n🔤 Транскрипция: `{transcription}`", parse_mode="Markdown")
 
-def socket_server():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("0.0.0.0", PORT))
-    server_socket.listen()
+# TELEGRAM PART END
 
-    logger.info("Server listening port %d", PORT)
+app = Flask(__name__)
+INCOMING_HTTP_PORT = int(os.environ.get("INCOMING_HTTP_PORT", 8000))  # для Render или Railway
 
+@app.route("/echo", methods=["POST"])
+def echo_http():
+    """echo"""
+    data = request.data.decode("utf-8")
+    print(f"[HTTP] Получено: {data}")
+    return f"Вы отправили: {data}", 200
+
+def http_server() -> None:
+    """http_server"""
+    # Запуск HTTP-сервера Flask
+    print(f"[HTTP] Flask-сервер запущен на порту {INCOMING_HTTP_PORT}")
+    app.run(host="0.0.0.0", port=INCOMING_HTTP_PORT)
+
+
+#HTTP CLIENT
+
+DESTINATION_HTTP_PORT = int(os.environ.get("DESTINATION_HTTP_PORT", 8000))
+# SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:")
+DESTINATION_ADDRESS = f"http://localhost:{DESTINATION_HTTP_PORT}/echo"
+
+def http_ping():
+    """http_ping"""
+    count = 1
     while True:
-        client_socket, addr = server_socket.accept()
-        logger.info("Connecting from %s", addr)
-        data = client_socket.recv(1024)
-        print(f"Received: {data.decode()}")
-        client_socket.sendall(data)
-        client_socket.close()
+        time.sleep(10)
+        message = f"Запрос номер {count}"
+        try:
+            response = requests.post(DESTINATION_ADDRESS, data=message.encode("utf-8"), timeout=100)
+            print(f"[{count}] Ответ от сервера: {response.text}")
+        except requests.RequestException as e:
+            print(f"[{count}] Ошибка запроса: {e}")
+        count += 1
+        time.sleep(10)
 
-    
+
 def main() -> None:
     """Start the bot."""
     # Start server in separate thread. Render scan opened port.
-    server_thread = threading.Thread(target=socket_server, daemon=True)
+    server_thread = threading.Thread(target=http_server, daemon=True)
     server_thread.start()
 
-    # Create the Application and pass it your bot's token.
+    http_ping_thread = threading.Thread(target=http_ping, daemon=True)
+    http_ping_thread.start()
+
+
     application = Application.builder().token(TOKEN).build()
 
     # on different commands - answer in Telegram
@@ -89,3 +114,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+  

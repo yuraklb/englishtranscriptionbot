@@ -51,7 +51,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # TELEGRAM PART END
 
 app = Flask(__name__)
-INCOMING_HTTP_PORT = int(os.environ.get("INCOMING_HTTP_PORT", 8000))  # для Render или Railway
+INCOMING_HTTP_PORT = int(os.environ.get("INCOMING_HTTP_PORT", 10000))
 
 @app.route("/echo", methods=["POST"])
 def echo_http():
@@ -69,9 +69,7 @@ def http_server() -> None:
 
 #HTTP CLIENT
 
-DESTINATION_HTTP_PORT = int(os.environ.get("DESTINATION_HTTP_PORT", 8000))
-# SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:")
-DESTINATION_ADDRESS = f"http://localhost:{DESTINATION_HTTP_PORT}/echo"
+DESTINATION_ADDRESS = os.environ.get("DESTINATION_ADDRESS", "http://localhost:10000/echo")
 
 def http_ping():
     """http_ping"""

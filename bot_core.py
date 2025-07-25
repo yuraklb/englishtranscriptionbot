@@ -27,7 +27,7 @@ def get_transcription(word) :
     """Get transcription from external API"""
     url = API_URL.format(word.lower())
     try:
-        res = requests.get(url)
+        res = requests.get(url, timeout=100)
         data = res.json()
         if isinstance(data, list):
             phonetics = data[0].get("phonetics", [])
@@ -83,7 +83,7 @@ def http_ping():
         except requests.RequestException as e:
             print(f"[{count}] Ошибка запроса: {e}")
         count += 1
-        time.sleep(10)
+        time.sleep(300)
 
 
 def main() -> None:
